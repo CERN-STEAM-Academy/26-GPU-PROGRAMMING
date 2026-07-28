@@ -1,0 +1,8 @@
+[tool.ruff]
+line-length = 180
+indent-width = 4
+
+[tool.ruff.format]
+indent-style = "tab"
+quote-style = "double"
+line-ending = "lf"
