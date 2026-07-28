@@ -1,0 +1,7 @@
+CompileFlags:
+  Add:
+    - --cuda-path=/usr/local/cuda
+    - -L/usr/local/cuda/lib64
+    - -I/usr/local/cuda/include
+    - -I/usr/local/cuda/include/cccl
+    - -I/usr/local/cuda/include/cccl/thrust
