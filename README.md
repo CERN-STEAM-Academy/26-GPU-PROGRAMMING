@@ -43,7 +43,7 @@ make
 
 ## Materials
 
-The slides will be made available shortly in the [a relative link](slides) folder.
+The slides will be made available shortly in the [slides](slides) folder.
 
 ## Schedule
 
