@@ -57,7 +57,6 @@ int main() {
 
     //To do: rearrange data in matrix a to coalesce memory accesses
     //You can use matrix e for this
-    float temp = 0;
     for (int i=0; i<nrows; i++)
     {
     	for (int j=0; j<ncols; j++)
