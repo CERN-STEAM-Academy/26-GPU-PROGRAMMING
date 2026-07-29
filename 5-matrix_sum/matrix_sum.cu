@@ -30,8 +30,8 @@ __global__ void matrix_sum_kernel(int64_t *c, int64_t *a, int nrows, int ncols) 
 
 int main() {
 
-    int nrows = 1e8; //Number of rows in matrices
-    int ncols = 4; //Number of columns in matrices
+    int nrows = 1e6; //Number of rows in matrices
+    int ncols = 32; //Number of columns in matrices
     float time;
     cudaError_t err;
 
