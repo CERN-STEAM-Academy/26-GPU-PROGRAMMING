@@ -1,0 +1,153 @@
+import os
+import subprocess
+import site
+from SCons.Script import AddOption, GetOption
+import sys
+
+# Check for debug flag passed via command line
+AddOption('--debug_mode',
+          dest='debug_mode',
+          action='store_true',
+          default=False,
+          help='Enable debug mode')
+
+debug_mode = GetOption('debug_mode')
+
+AddOption('--fast_compile',
+          dest='fast_compile',
+          action='store_true',
+          default=False,
+          help='Enable fast unoptimized compilation')
+
+fast_compile = GetOption('fast_compile')
+
+
+vars = Variables()
+vars.Add(
+    'CUDA_ARCH',
+    'Compute capability (e.g., 52, 60, 61, 70, 75, 80, 86, 90, 100)',
+    ''
+)
+
+vars.Add(
+    BoolVariable(
+        'USE_UNIVERSAL_VECTORS',
+        'Whether or not to compile support for universal vectors',
+        False
+    )
+)
+
+vars.Add(
+    BoolVariable(
+        'USE_MULTI_GPU',
+        'Whether or not to compile support for multiple GPUs',
+        False
+    )
+)
+
+env = Environment(variables = vars)
+
+VariantDir('build', 'src', duplicate=0)
+SConsignFile('build/.sconsign.dblite')
+
+env['LINK'] = 'g++'
+env['LIBPREFIX'] = ''
+
+# Add CUDA include paths (if needed)
+PYBIND11_INCLUDES = subprocess.check_output(
+    [sys.executable, '-m', 'pybind11', '--includes'],
+    text=True
+).strip().split()
+env.Append(CPPPATH=PYBIND11_INCLUDES)
+
+# Add export path for the linker
+env['SHLINKFLAGS'] = ['-Wall', '-shared', "-rdynamic", '-fopenmp']
+env.Append(LIBS=['cufile'])
+
+
+# Configure CUDA compilation
+env.Tool('cuda')
+
+# Set compilation flags
+common_cxxflags = ['-fPIC']
+common_nvccflags = ['-std', 'c++20', '-Xcompiler', '-fopenmp', '-extended-lambda']
+
+cc = env['CUDA_ARCH']
+if cc != "":
+    common_nvccflags.extend(['-gencode', f'arch=compute_{cc},code=sm_{cc}'])
+
+if debug_mode:
+    print("Building in DEBUG mode")
+    # Add debug symbols and disable optimizations
+    common_cxxflags.extend(['-g'])
+    common_nvccflags.extend(['-g', '-G', '-O0'])  # -G enables device debug info for CUDA
+elif fast_compile:
+    print("Building in UNOPTIMIZED mode")
+    # Set O0 for unoptimized fast compile
+    common_nvccflags.extend(['-O0', '-Xptxas', '-O0'])
+else:
+    print("Building in RELEASE mode")
+    # Release flags
+    #common_nvccflags.extend(['-O3'])
+    common_nvccflags.extend(['-O3'])
+
+common_nvccflags.append(f"-DUSE_UNIVERSAL_VECTORS={int(env['USE_UNIVERSAL_VECTORS'])}")
+common_nvccflags.append(f"-DUSE_MULTI_GPU={int(env['USE_MULTI_GPU'])}")
+
+env.Append(
+    CXXFLAGS=common_cxxflags,
+    NVCCFLAGS=common_nvccflags
+)
+
+# Specify source files
+cuda_sources = [
+    'build/cofactor/cofactor.cu',
+    'build/product_layer/product_layer.cu',
+    'build/quantifier/layered_quantifier.cu',
+    'build/quantifier/persistent_quantifier.cu',
+    'build/arc_layer/arc_layer.cu',
+    'build/bdd/administrators.cu',
+    'build/bdd/bdd_counting.cu',
+    # 'build/SROBDD/bdd/bdd_dddmp.cu',
+    'build/bdd/bdd_operations.cu',
+    'build/bdd/bdd_structure.cu',
+    'build/bdd/iterator.cu',
+    'build/bdd/node_ref.cu',
+    'build/layer/layer_constructors.cu',
+    'build/layer/layer_propagate.cu',
+    'build/layer/layer_propagate_up.cu',
+    'build/layer/layer_remove_insert.cu',
+    'build/layer/layer_structure.cu',
+    'build/semi_arc_layer/semi_arc_layer_constructor_helpers.cu',
+    'build/semi_arc_layer/semi_arc_layer_constructors.cu',
+    'build/semi_arc_layer/semi_arc_layer_merge.cu',
+    'build/semi_arc_layer/semi_arc_layer_sorting.cu',
+    'build/semi_arc_layer/semi_arc_layer_structure.cu',
+    'build/bindings/bindings.cu',
+    'build/data_manager/data_manager.cu'
+]
+
+PYBIND11_SUFFIX = subprocess.check_output(
+    [sys.executable, '-m', 'pybind11', '--extension-suffix'],
+    text=True
+).strip()
+
+# Build shared library
+python_bindings = env.SharedLibrary(
+    target=os.getenv('GPUDECIDE_BUILD_TARGET', site.getsitepackages()[0] + '/gpudecide') + PYBIND11_SUFFIX,
+    source=cuda_sources
+)
+
+# Run doxygen directly using the Doxyfile
+doxy_target = env.Command(
+    target='doc/html/index.html',
+    source='Doxyfile',
+    action='doxygen $SOURCE'
+)
+
+# Tell SCons to wipe the target folder during clean operations
+env.Clean(doxy_target, 'doc')
+
+Alias('docs', doxy_target)
+
+env.Default(python_bindings)

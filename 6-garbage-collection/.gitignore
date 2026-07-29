@@ -1,0 +1,15 @@
+.venv
+.vscode
+gpudecide
+src/tests/gather
+build/*
+*.o
+*.dddmp
+*.cnf
+docs/manim/media
+/tests
+/src/tests
+*__pycache__*
+*.csv
+test/spill/**/*.log
+doc/*
