@@ -3,7 +3,7 @@
 extern "C" {
     void start_timer();
     void stop_timer(float *time);
-    __global__ void vec_sum_kernel(float *c, float *a, int nrows, int ncols);
+    __global__ void matrix_sum_kernel(float *c, float *a, int nrows, int ncols);
 }
 
 int compare_arrays(float *c, float *d, int n);
