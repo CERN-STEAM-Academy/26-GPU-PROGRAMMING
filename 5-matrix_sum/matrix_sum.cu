@@ -61,7 +61,7 @@ int main() {
     {
     	for (int j=0; j<ncols; j++)
     	{
-		// ...
+		e[i*nrows+j] = a[i*nrows+j];
     	}
     }
     a = e;
