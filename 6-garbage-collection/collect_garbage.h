@@ -20,7 +20,8 @@
   * In this parent layer, some nodes have already been removed. It is the job of this function to inspect the current 
   * layer to see which nodes are orphaned and can be removed.
   */
-void garbage_collection(auto policy, auto& v, auto& parent_v) {
+template <typename Policy, typename ChildVec, typename ParentVec>
+void garbage_collection(Policy policy, ChildVec& v, ParentVec& parent_v) {
 	// Templating logic to deduce type of vector (host/device)
 	using Vec = std::remove_reference_t<decltype(v)>;
 
@@ -43,7 +44,7 @@ void garbage_collection(auto policy, auto& v, auto& parent_v) {
 		policy, // This is either thrust::host or thrust::device
 		stencil.begin(), stencil.end(), // Input list
 		stencil.begin(),	// Output list. Can be same as input list, but must not overlap with offset.
-		[]__host__ __device__(uint32_t in) { return in + 1; }
+		[] __host__ __device__ (uint32_t in){ return in + 1; }
 	);
 	*/ 
 };
