@@ -3,12 +3,12 @@
 extern "C" {
     void start_timer();
     void stop_timer(float *time);
-    __global__ void vec_sum_kernel(float *c, float *a, int nrows, int ncols);
+    __global__ void matrix_sum_kernel(int64_t *c, int64_t *a, int nrows, int ncols);
 }
 
-int compare_arrays(float *c, float *d, int n);
+int compare_arrays(int64_t *c, int64_t *d, int n);
 
-void matrix_sum(float *c, float *a, int nrows, int ncols) {
+void matrix_sum(int64_t *c, int64_t *a, int nrows, int ncols) {
     for (int i=0; i<nrows; i++) {
     	for (int j=0; j<ncols; j++) {
     		c[i] += a[i*ncols+j];
@@ -16,7 +16,7 @@ void matrix_sum(float *c, float *a, int nrows, int ncols) {
     }
 }
 
-__global__ void matrix_sum_kernel(float *c, float *a, int nrows, int ncols) {
+__global__ void matrix_sum_kernel(int64_t *c, int64_t *a, int nrows, int ncols) {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (x < nrows) {
@@ -30,15 +30,15 @@ __global__ void matrix_sum_kernel(float *c, float *a, int nrows, int ncols) {
 
 int main() {
 
-    int nrows = 1e8; //Number of rows in matrices
-    int ncols = 4; //Number of columns in matrices
+    int nrows = 1e6; //Number of rows in matrices
+    int ncols = 32; //Number of columns in matrices
     float time;
     cudaError_t err;
 
     //Allocate arrays and fill them
-    float *a = (float *) malloc(nrows * ncols * sizeof(float));
-    float *c = (float *) malloc(nrows * sizeof(float));
-    float *d = (float *) malloc(nrows * sizeof(float));
+    int64_t *a = (int64_t *) malloc(nrows * ncols * sizeof(int64_t));
+    int64_t *c = (int64_t *) malloc(nrows * sizeof(int64_t));
+    int64_t *d = (int64_t *) malloc(nrows * sizeof(int64_t));
     for (int i=0; i<(nrows * ncols); i++) {
         a[i] = 1.0 / rand();
     }
@@ -47,7 +47,7 @@ int main() {
         d[i] = 0.0;
     }
 
-    float *e = (float *) malloc(nrows*ncols*sizeof(float));
+    int64_t *e = (int64_t *) malloc(nrows*ncols*sizeof(int64_t));
 
     //Measure the CPU function
     start_timer();
@@ -61,24 +61,24 @@ int main() {
     {
     	for (int j=0; j<ncols; j++)
     	{
-		// ...
+    	    e[i*ncols+j] = a[i*ncols+j];
     	}
     }
     a = e;
 
     //Allocate GPU memory
-    float *d_a; float *d_c;
-    err = cudaMalloc((void **)&d_a, nrows*ncols*sizeof(float));
+    int64_t *d_a; int64_t *d_c;
+    err = cudaMalloc((void **)&d_a, nrows*ncols*sizeof(int64_t));
     if (err != cudaSuccess) fprintf(stderr, "Error in cudaMalloc d_a: %s\n", cudaGetErrorString( err ));
-    err = cudaMalloc((void **)&d_c, nrows*sizeof(float));
+    err = cudaMalloc((void **)&d_c, nrows*sizeof(int64_t));
     if (err != cudaSuccess) fprintf(stderr, "Error in cudaMalloc d_c: %s\n", cudaGetErrorString( err ));
 
     //Copy the input data to the GPU
-    err = cudaMemcpy(d_a, a, nrows*ncols*sizeof(float), cudaMemcpyHostToDevice);
+    err = cudaMemcpy(d_a, a, nrows*ncols*sizeof(int64_t), cudaMemcpyHostToDevice);
     if (err != cudaSuccess) fprintf(stderr, "Error in cudaMemcpy host to device a: %s\n", cudaGetErrorString( err ));
 
     //Zero the output array
-    err = cudaMemset(d_c, 0, nrows*sizeof(float));
+    err = cudaMemset(d_c, 0, nrows*sizeof(int64_t));
     if (err != cudaSuccess) fprintf(stderr, "Error in cudaMemset c: %s\n", cudaGetErrorString( err ));
 
     //Setup the grid and thread blocks
@@ -100,7 +100,7 @@ int main() {
     if (err != cudaSuccess) fprintf(stderr, "Error during kernel launch matrix_sum_kernel: %s\n", cudaGetErrorString( err ));
 
     //Copy the result back to host memory
-    err = cudaMemcpy(d, d_c, nrows*sizeof(float), cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(d, d_c, nrows*sizeof(int64_t), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) fprintf(stderr, "Error in cudaMemcpy device to host c: %s\n", cudaGetErrorString( err ));
 
     //Check the result
@@ -124,7 +124,7 @@ int main() {
 
 
 
-int compare_arrays(float *a1, float *a2, int n) {
+int compare_arrays(int64_t *a1, int64_t *a2, int n) {
     int errors = 0;
     int print = 0;
 
